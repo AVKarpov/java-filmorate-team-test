@@ -1,6 +1,8 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import lombok.extern.slf4j.Slf4j;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.service.UserService;
@@ -10,11 +12,13 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/users")
+@Qualifier("userInMemoryDao")
 @Slf4j
 public class UserController {
 
     private final UserService userService;
 
+    @Autowired
     public UserController(UserService userService) {
         this.userService = userService;
     }
@@ -33,7 +37,7 @@ public class UserController {
 
     //возвращает информацию обо всех пользователях
     @GetMapping
-    private List<User> getUsers() {
+    private Set<User> getUsers() {
         return userService.getUsers();
     }
 
@@ -66,6 +70,6 @@ public class UserController {
     @GetMapping("/{id}/friends/common/{otherId}")
     private List<User> getOtherFriends(@PathVariable("id") long userId, @PathVariable("otherId") long otherId) {
         log.info("Получен запрос на поиск общих друзей для пользователей с userId={} и otherId={}.", userId, otherId);
-        return userService.getOtherFriends(userId, otherId);
+        return userService.getCommonFriends(userId, otherId);
     }
 }

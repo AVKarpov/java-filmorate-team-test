@@ -22,30 +22,36 @@ public class FilmController {
     //добавление фильма
     @PostMapping
     protected Film addFilm(@Valid @RequestBody Film film) {
+        log.info("Получен запрос на добавление фильма: {}",film.getName());
         return filmService.addFilm(film);
     }
 
     //обновление фильма
     @PutMapping
     protected Film updateFilm(@Valid @RequestBody Film film) {
+        log.info("Получен запрос на обновление фильма: {}",film.getId());
         return filmService.updateFilm(film);
     }
 
     //удаление фильма по id
     @DeleteMapping("/{id}")
     protected void deleteFilm(@PathVariable("id") long filmId) {
+        log.info("Получен запрос на удаление фильма: {}",filmId);
         filmService.deleteFilm(filmId);
     }
+
 
     //получение фильма по id
     @GetMapping("/{id}")
     protected Film getFilm(@PathVariable("id") long filmId) {
+        log.info("Получен запрос на чтение фильма с id={}",filmId);
         return filmService.getFilm(filmId);
     }
 
     //возвращает информацию обо всех фильмах
     @GetMapping
     protected List<Film> getFilms() {
+        log.info("Получен запрос на чтение всех фильмов.");
         return filmService.getFilms();
     }
 
@@ -63,8 +69,11 @@ public class FilmController {
 
     //вернуть самые популярные фильмы
     @GetMapping("/popular")
-    protected List<Film> getPopularFilms(@RequestParam(defaultValue = "10", required = false) Long count) {
+    protected List<Film> getPopularFilms(@RequestParam(defaultValue = "10",
+                                         required = false) Long count) {
         log.info("1.Запрос на получение {} популярных фильмов...", count);
         return filmService.getPopularFilms(count);
     }
+
+
 }

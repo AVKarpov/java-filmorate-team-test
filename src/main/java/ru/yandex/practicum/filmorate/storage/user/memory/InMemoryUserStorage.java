@@ -1,22 +1,25 @@
-package ru.yandex.practicum.filmorate.storage.user;
+package ru.yandex.practicum.filmorate.storage.user.memory;
 
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Component;
 import ru.yandex.practicum.filmorate.exceptions.user.UserNotFoundException;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.storage.user.dao.UserDao;
 
 import java.util.*;
+import java.util.stream.Collectors;
 
 //реализация методов добавления, удаления и модификации объектов.
-@Component
+@Component("userInMemoryDao")
 @Slf4j
-public class InMemoryUserStorage implements UserStorage {
+public class InMemoryUserStorage implements UserDao {
     private long maxId = 0;
 
-    private Map<Long, User> users = new HashMap<>(); //информация о фильмах
+    private Map<Long, User> users = new HashMap<>(); //информация о пользователях
 
     @Override
     public User addUser(User user) {
+        log.debug("Получен запрос на добавление пользователя в InMemory...");
         String name = user.getName();
         String login = user.getLogin();
         if (name == null || name.isBlank()) {
@@ -24,7 +27,6 @@ public class InMemoryUserStorage implements UserStorage {
         }
         final long id = generateId();
         user.setId(id);
-        user.setFriends(new HashSet<>());
         this.users.put(id, user);
         //возвращаем информацию о добавленном пользователе
         log.debug("Добавлен пользователь с id={}, name={}, email={}, login={}, birthday={}"
@@ -49,14 +51,18 @@ public class InMemoryUserStorage implements UserStorage {
     }
 
     @Override
-    public List<User> getUsers() {
+    public Set<User> getUsers() {
         log.info("Получен список пользователей.");
-        return new ArrayList<>(this.users.values());
+        return this.users.values().stream().collect(Collectors.toSet());
     }
 
     //возвращает данные о пользователе
     @Override
     public User getUser(long userId) {
+        log.debug("Получен запрос из InMemory на пользователя с id={}",userId);
+        if(!users.containsKey(userId)) {
+            throw new UserNotFoundException("Пользователь с id="+userId+" не найден.");
+        }
         return users.get(userId);
     }
 

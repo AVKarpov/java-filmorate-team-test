@@ -4,7 +4,8 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exceptions.user.UserNotFoundException;
 import ru.yandex.practicum.filmorate.model.User;
-import ru.yandex.practicum.filmorate.storage.user.InMemoryUserStorage;
+import ru.yandex.practicum.filmorate.storage.user.dao.FriendsDao;
+import ru.yandex.practicum.filmorate.storage.user.dao.UserDao;
 
 import java.util.*;
 import java.util.stream.Collectors;
@@ -13,60 +14,53 @@ import java.util.stream.Collectors;
 @Slf4j
 public class UserService {
 
-    private final InMemoryUserStorage inMemoryUserStorage;
+   private final UserDao userStorage;
+   private final FriendsDao friendsDao;
 
-    public UserService(InMemoryUserStorage inMemoryUserStorage) {
-        this.inMemoryUserStorage = inMemoryUserStorage;
+    public UserService(UserDao userStorage,
+                       FriendsDao friendsDao) {
+        this.userStorage = userStorage;
+        this.friendsDao = friendsDao;
     }
 
     //добавление пользователя
     public User addUser(User user) {
-        return inMemoryUserStorage.addUser(user);
+        log.info("Получен запрос на добавление пользователя...");
+        return userStorage.addUser(user);
     }
 
     //обновление пользователя
     public User updateUser(User user) {
+        log.info("Получен запрос на обновление пользователя...");
         isValidIdUser(user.getId());
-        return inMemoryUserStorage.updateUser(user);
+        return userStorage.updateUser(user);
     }
 
     //возвращает информацию обо всех пользователях
-    public List<User> getUsers() {
-        return inMemoryUserStorage.getUsers();
+    public Set<User> getUsers() {
+        log.info("Получен запрос на чтение пользователей...");
+        return userStorage.getUsers().stream().collect(Collectors.toSet());
     }
 
     //получение данных о пользователе
     public User getUser(long userId) {
         log.info("Получен запрос на получение данных пользователя с id={}", userId);
-        isValidIdUser(userId);
+//        isValidIdUser(userId);
         log.info("Пользователь с id={} получен.", userId);
-        return inMemoryUserStorage.getUser(userId);
+        return userStorage.getUser(userId);
     }
 
     //добавление в друзья
     public void addFriend(long userId, long friendId) {
+        log.debug("Получен запрос на добавление для пользователя с id={} друга с id={}", userId, friendId);
         isValidIdUser(userId);
         isValidIdUser(friendId);
-        log.debug("Получен запрос на добавление для пользователя с id={} друга с id={}", userId, friendId);
-        //взаимно добавляем друзей в списки
-        addFriendsInUser(userId, friendId);
-        addFriendsInUser(friendId, userId);
+        isNotEqualIdUser(userId, friendId);
+        //проверка наличия пользователей в БД
+        userStorage.getUser(userId);
+        userStorage.getUser(friendId);
+        friendsDao.addFriend(userId,friendId);
         log.info("Для пользователя с id = {} добавлен друг с id={}", userId, friendId);
-    }
-
-    //обновляет список друзей
-    private void addFriendsInUser(long userId, long friendId) {
-        Optional<Set<Long>> friendsUser = Optional.ofNullable(inMemoryUserStorage.getUser(userId).getFriends());
-        log.debug("Друзья пользователя с id={} : {}", userId, friendsUser);
-        if (!friendsUser.isPresent()) {
-            Set<Long> friend = new HashSet<>();
-            friend.add(friendId);
-            inMemoryUserStorage.getUser(userId).setFriends(friend);
-        } else {
-            Set<Long> friendsSet = friendsUser.get();
-            friendsSet.add(friendId);
-        }
-        log.info("Друзья пользователя с id={} после обновления: {}", userId, inMemoryUserStorage.getUser(userId).getFriends());
     }
 
     //удаление из друзей
@@ -76,49 +70,29 @@ public class UserService {
         isValidIdUser(friendId);
         isNotEqualIdUser(userId, friendId);
         log.debug("Запрос на удаление для пользователя с id={} друга с id={} одобрен.", userId, friendId);
-        Optional<Set<Long>> friendsOp = Optional.ofNullable(inMemoryUserStorage.getUser(userId).getFriends());
-        if (friendsOp.isPresent() && friendsOp.get().contains(friendId)) {
-            Set<Long> friends = friendsOp.get();
-            friends.remove(friendId);
-            log.info("У пользователя с id = {} удалён друг с id={}", userId, friendId);
-        }
+        friendsDao.deleteFriend(userId,friendId);
     }
 
     //возвращение списка друзей пользователя
     public List<User> getFriends(long userId) {
         log.debug("Получен запрос на получение для пользователя с id={} списка друзей", userId);
         isValidIdUser(userId);
-        return inMemoryUserStorage.getUser(userId).getFriends().stream()
-                .map(inMemoryUserStorage::getUser)
-                .collect(Collectors.toList());
+        return friendsDao.getFriends(userId);
     }
 
 
     //список друзей, общих с другим пользователем.
-    public List<User> getOtherFriends(long userId, long otherId) {
+    public List<User> getCommonFriends(long userId, long otherId) {
         log.debug("Получен запрос на поиск общих друзей для пользователей с userId={} и otherId={}.", userId, otherId);
         isValidIdUser(userId);
         isValidIdUser(otherId);
         isNotEqualIdUser(userId, otherId);
-        log.debug("Запрос на поиск общих друзей для пользователей с userId={} и otherId={} одобрен.", userId, otherId);
-        Optional<Set<Long>> userFriendsOp = Optional.ofNullable(inMemoryUserStorage.getUser(userId).getFriends());
-        Optional<Set<Long>> otherFriendsOp = Optional.ofNullable(inMemoryUserStorage.getUser(otherId).getFriends());
-        if (userFriendsOp.isPresent() && otherFriendsOp.isPresent()) {
-            Set<Long> userFriends = userFriendsOp.get();
-            Set<Long> otherFriends = otherFriendsOp.get();
-            return userFriends.stream().filter(otherFriends::contains).map(inMemoryUserStorage::getUser)
-                    .collect(Collectors.toList());
-        }
-        return new ArrayList<>();
+        return friendsDao.getCommonFriends(userId,otherId);
     }
 
     private boolean isValidIdUser(long userId) {
         if (userId <= 0) {
             throw new UserNotFoundException("Некорректный id=" + userId + " пользователя.");
-        }
-        Optional<User> user = Optional.ofNullable(inMemoryUserStorage.getUser(userId));
-        if (!user.isPresent()) {
-            throw new UserNotFoundException("Пользователь с id=" + userId + " не найден.");
         }
         log.debug("Валидация пользователя с id={} прошла успешно.", userId);
         return true;
