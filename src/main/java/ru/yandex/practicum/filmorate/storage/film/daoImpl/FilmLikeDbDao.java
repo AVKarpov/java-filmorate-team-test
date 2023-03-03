@@ -6,6 +6,8 @@ import org.springframework.context.annotation.Primary;
 import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.stereotype.Component;
 import ru.yandex.practicum.filmorate.exceptions.film.FilmNotFoundException;
+import ru.yandex.practicum.filmorate.model.feed.EventType;
+import ru.yandex.practicum.filmorate.model.feed.OperationType;
 import ru.yandex.practicum.filmorate.storage.film.dao.FilmLikeDao;
 import ru.yandex.practicum.filmorate.storage.film.dao.GenreDao;
 import ru.yandex.practicum.filmorate.storage.film.dao.MpaDao;
@@ -18,12 +20,14 @@ public class FilmLikeDbDao implements FilmLikeDao {
     private final JdbcTemplate jdbcTemplate;
     private final MpaDao mpaDao;
     private final GenreDao genreDao;
+    private final FeedDbDao feedDbDao;
 
     public FilmLikeDbDao(JdbcTemplate jdbcTemplate, @Qualifier("mpaDbDao") MpaDao mpaDao,
-                         @Qualifier("genreDbDao") GenreDao genreDao) {
+                         @Qualifier("genreDbDao") GenreDao genreDao, @Qualifier("feedDbDao") FeedDbDao feedDbDao) {
         this.jdbcTemplate = jdbcTemplate;
         this.mpaDao = mpaDao;
         this.genreDao = genreDao;
+        this.feedDbDao = feedDbDao;
     }
 
     //добавить лайки фильмам в таблицу films_like
@@ -42,6 +46,7 @@ public class FilmLikeDbDao implements FilmLikeDao {
             log.debug("Возникло исключение: фильм или пользователь не найдены.");
             throw new FilmNotFoundException("Фильм с id="+filmId+" или пользователь с id="+userId+" не найден.");
         }
+        feedDbDao.addFeed(userId, EventType.LIKE, OperationType.ADD, filmId);
         log.debug("Для фильма с id={} добавлен лайк пользователем с id={}.",filmId,userId);
     }
 
@@ -60,6 +65,7 @@ public class FilmLikeDbDao implements FilmLikeDao {
             log.debug("Возникло исключение: фильм или пользователь не найдены.");
             throw new FilmNotFoundException("Фильм с id="+filmId+" или пользователь с id="+userId+" не найден.");
         }
+        feedDbDao.addFeed(userId, EventType.LIKE, OperationType.REMOVE, filmId);
         log.debug("Для фильма с id={} удалён лайк пользователем с id={}.",filmId,userId);
     }
 

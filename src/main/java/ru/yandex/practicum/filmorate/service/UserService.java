@@ -3,7 +3,9 @@ package ru.yandex.practicum.filmorate.service;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.stereotype.Service;
 import ru.yandex.practicum.filmorate.exceptions.user.UserNotFoundException;
+import ru.yandex.practicum.filmorate.model.feed.Feed;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.storage.film.daoImpl.FeedDbDao;
 import ru.yandex.practicum.filmorate.storage.user.dao.FriendsDao;
 import ru.yandex.practicum.filmorate.storage.user.dao.UserDao;
 
@@ -16,11 +18,14 @@ public class UserService {
 
    private final UserDao userStorage;
    private final FriendsDao friendsDao;
+   private final FeedDbDao feedDbDao;
 
     public UserService(UserDao userStorage,
-                       FriendsDao friendsDao) {
+                       FriendsDao friendsDao,
+                       FeedDbDao feedDbDao) {
         this.userStorage = userStorage;
         this.friendsDao = friendsDao;
+        this.feedDbDao = feedDbDao;
     }
 
     //добавление пользователя
@@ -88,6 +93,12 @@ public class UserService {
         isValidIdUser(otherId);
         isNotEqualIdUser(userId, otherId);
         return friendsDao.getCommonFriends(userId,otherId);
+    }
+
+    public List<Feed> getUserFeed(long userId) {
+        log.info("Получен запрос ленты событий пользователя с userId={}", userId);
+        isValidIdUser(userId);
+        return feedDbDao.getFeed(userId);
     }
 
     private boolean isValidIdUser(long userId) {

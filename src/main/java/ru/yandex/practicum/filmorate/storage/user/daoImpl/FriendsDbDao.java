@@ -7,6 +7,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.stereotype.Component;
 import ru.yandex.practicum.filmorate.model.User;
+import ru.yandex.practicum.filmorate.model.feed.EventType;
+import ru.yandex.practicum.filmorate.model.feed.OperationType;
+import ru.yandex.practicum.filmorate.storage.film.daoImpl.FeedDbDao;
 import ru.yandex.practicum.filmorate.storage.user.dao.FriendsDao;
 
 import java.sql.ResultSet;
@@ -20,9 +23,11 @@ import java.util.List;
 public class FriendsDbDao implements FriendsDao {
 
     private final JdbcTemplate jdbcTemplate;
+    private final FeedDbDao feedDbDao;
 
-    public FriendsDbDao(JdbcTemplate jdbcTemplate) {
+    public FriendsDbDao(JdbcTemplate jdbcTemplate, FeedDbDao feedDbDao) {
         this.jdbcTemplate = jdbcTemplate;
+        this.feedDbDao = feedDbDao;
     }
 
     @Override
@@ -47,12 +52,14 @@ public class FriendsDbDao implements FriendsDao {
                 String friendSqlTrue = "UPDATE friends SET user_id=?,friend_id=?,friend_status=?;";
                 args = new Object[]{friendId, userId, true};
                 jdbcTemplate.update(friendSqlTrue, args);
+                feedDbDao.addFeed(userId, EventType.FRIEND, OperationType.ADD, friendId);
             }
         } else {
             //если запись не найдена, то добавляем её
             String addFriendSql = "INSERT INTO friends(user_id,friend_id) VALUES(?,?);";
             args = new Object[]{userId, friendId};
             jdbcTemplate.update(addFriendSql, args);
+            feedDbDao.addFeed(userId, EventType.FRIEND, OperationType.ADD, friendId);
         }
     }
 
@@ -77,6 +84,7 @@ public class FriendsDbDao implements FriendsDao {
             String delFriendSql = "DELETE FROM friends WHERE (user_id=? and friend_id=?) OR (user_id=? and friend_id=?);";
             args = new Object[]{userId, friendId, friendId, userId};
             jdbcTemplate.update(delFriendSql, args);
+            feedDbDao.addFeed(userId, EventType.FRIEND, OperationType.REMOVE, friendId);
             if (status) {
                 String addFriendSql = "INSERT INTO friends(user_id,friend_id) VALUES(?,?);";
                 args = new Object[]{friendId, userId};

@@ -4,6 +4,7 @@ import lombok.extern.slf4j.Slf4j;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.beans.factory.annotation.Qualifier;
 import org.springframework.web.bind.annotation.*;
+import ru.yandex.practicum.filmorate.model.feed.Feed;
 import ru.yandex.practicum.filmorate.model.User;
 import ru.yandex.practicum.filmorate.service.UserService;
 
@@ -12,7 +13,7 @@ import java.util.*;
 
 @RestController
 @RequestMapping("/users")
-@Qualifier("userInMemoryDao")
+@Qualifier("userDbDao")
 @Slf4j
 public class UserController {
 
@@ -71,5 +72,11 @@ public class UserController {
     private List<User> getOtherFriends(@PathVariable("id") long userId, @PathVariable("otherId") long otherId) {
         log.info("Получен запрос на поиск общих друзей для пользователей с userId={} и otherId={}.", userId, otherId);
         return userService.getCommonFriends(userId, otherId);
+    }
+
+    //возвращение ленты событий пользователя
+    @GetMapping("/{id}/feed")
+    private List<Feed> getFeed(@PathVariable("id") long userId) {
+        return userService.getUserFeed(userId);
     }
 }
