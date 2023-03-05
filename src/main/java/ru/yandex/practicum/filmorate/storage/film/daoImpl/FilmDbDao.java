@@ -47,18 +47,16 @@ public class FilmDbDao implements FilmDao {
         String addFilmSql = "INSERT INTO films(name,description,release_date,duration,rate,rating_id) VALUES(?,?,?,?,?,?);";
         KeyHolder keyHolder = new GeneratedKeyHolder();
         jdbcTemplate.update(
-                new PreparedStatementCreator() {
-                    public PreparedStatement createPreparedStatement(Connection connection) throws SQLException {
-                        PreparedStatement ps =
-                                connection.prepareStatement(addFilmSql, new String[]{"film_id"});
-                        ps.setString(1, film.getName());
-                        ps.setString(2, film.getDescription());
-                        ps.setString(3, film.getReleaseDate().toString());
-                        ps.setInt(4, film.getDuration());
-                        ps.setInt(5, film.getRate());
-                        ps.setInt(6, film.getMpa().getId());
-                        return ps;
-                    }
+                connection -> {
+                    PreparedStatement ps =
+                            connection.prepareStatement(addFilmSql, new String[]{"film_id"});
+                    ps.setString(1, film.getName());
+                    ps.setString(2, film.getDescription());
+                    ps.setString(3, film.getReleaseDate().toString());
+                    ps.setInt(4, film.getDuration());
+                    ps.setInt(5, film.getRate());
+                    ps.setInt(6, film.getMpa().getId());
+                    return ps;
                 },
                 keyHolder);
         long filmId = keyHolder.getKey().intValue();
