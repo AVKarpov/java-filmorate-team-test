@@ -16,8 +16,10 @@ import ru.yandex.practicum.filmorate.storage.film.dao.MpaDao;
 import ru.yandex.practicum.filmorate.storage.user.dao.UserDao;
 
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
+import java.util.stream.Stream;
 
 //отвечает за операции с фильмами, — добавление и удаление лайка, вывод 10 наиболее популярных фильмов
 // по количеству лайков. Пусть пока каждый пользователь может поставить лайк фильму только один раз.
@@ -41,7 +43,7 @@ public class FilmService {
 
     //добавляем фильм
     public Film addFilm(Film film) {
-        log.info("Запрос на добавление фильма: {} направлен в хранилище...",film.getName());
+        log.info("Запрос на добавление фильма: {} направлен в хранилище...", film.getName());
 
         //проверка наличия рейтинга в таблице ratings (MPA)
         if (!isRatingsMpa(film.getMpa().getId())) {
@@ -100,16 +102,16 @@ public class FilmService {
         //проверка существования фильма с id
         isValidFilmId(filmId);
         isValidUserId(userId);
-        Film film=filmStorage.getFilm(filmId);
-        if(film==null) {
-            throw new FilmNotFoundException("Фильм с id="+filmId+" не найден.");
+        Film film = filmStorage.getFilm(filmId);
+        if (film == null) {
+            throw new FilmNotFoundException("Фильм с id=" + filmId + " не найден.");
         }
         //проверка существования пользователя с id
-        User user=userStorage.getUser(userId);
-        if(user==null) {
+        User user = userStorage.getUser(userId);
+        if (user == null) {
             throw new UserNotFoundException("Пользователь с id=" + userId + " не найден.");
         }
-        filmLikeDao.addLike(filmId,userId);
+        filmLikeDao.addLike(filmId, userId);
     }
 
     //пользователь удаляет лайк.
@@ -117,7 +119,7 @@ public class FilmService {
         log.debug("Запрос на удаление лайка фильму с id={} лайка от пользователя с userId={}", filmId, userId);
         isValidFilmId(filmId);
         isValidUserId(userId);
-        filmLikeDao.deleteLike(filmId,userId);
+        filmLikeDao.deleteLike(filmId, userId);
     }
 
     //вывод популярных фильмов,если параметр не задан, то выводим 10 фильмов
@@ -128,6 +130,30 @@ public class FilmService {
         }
         log.debug("Запрос на получение {} популярных фильмов...", count);
         return filmStorage.getPopularFilms(count);
+    }
+
+    //вернуть общие фильмы для пользователей
+    public List<Film> getCommonFilms(Optional<String> userId, Optional<String> friendId) {
+        log.info("FilmService: Запрошены общие фильмы пользователей.");
+        long userIdTrue = getDigitOfString(userId);
+        long friendIdTrue = getDigitOfString(friendId);
+        //проверка значений userId и friendId как на значение >0, так и на соответствие Long
+        log.info("FilmService: Запрос на получение общих фильмов пользователей с userId={} и friendId={}..."
+                , userIdTrue, friendIdTrue);
+        isValidUserId(userIdTrue);
+        isValidUserId(friendIdTrue);
+        isNotEqualIdUser(userIdTrue, friendIdTrue);
+        return filmStorage.getCommonFilms(userIdTrue, friendIdTrue);
+    }
+
+    //возвращает из строки числовое значение
+
+    private Long getDigitOfString(Optional<String> str) {
+        return Stream.of(str.get())
+                .limit(1)
+                .map(this::stringParseLong)
+                .findFirst()
+                .get();
     }
 
     //проверка корректности значений filmId
@@ -167,5 +193,21 @@ public class FilmService {
         }
         log.debug("Для фильма не найден все добавляемые (обновляемые) жанры.");
         return true;
+    }
+
+    //проверяет не равныли id пользователя и друга
+    public boolean isNotEqualIdUser(long userId, long friendId) {
+        if (userId == friendId) {
+            throw new UserNotFoundException("Пользователь с id=" + userId + " не может добавить сам себя в друзья.");
+        }
+        return true;
+    }
+
+    private Long stringParseLong(String str) {
+        try {
+            return Long.parseLong(str);
+        } catch (RuntimeException e) {
+            throw new ValidationException("Передан некорректный userId.");
+        }
     }
 }

@@ -1,7 +1,6 @@
 package ru.yandex.practicum.filmorate.controller;
 
 import lombok.extern.slf4j.Slf4j;
-import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.web.bind.annotation.*;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.service.FilmService;
@@ -23,28 +22,28 @@ public class FilmController {
     //добавление фильма
     @PostMapping
     protected Film addFilm(@Valid @RequestBody Film film) {
-        log.info("Получен запрос на добавление фильма: {}",film.getName());
+        log.info("Получен запрос на добавление фильма: {}", film.getName());
         return filmService.addFilm(film);
     }
 
     //обновление фильма
     @PutMapping
     protected Film updateFilm(@Valid @RequestBody Film film) {
-        log.info("Получен запрос на обновление фильма: {}",film.getId());
+        log.info("Получен запрос на обновление фильма: {}", film.getId());
         return filmService.updateFilm(film);
     }
 
     //удаление фильма по id
     @DeleteMapping("/{id}")
     protected void deleteFilm(@PathVariable("id") long filmId) {
-        log.info("Получен запрос на удаление фильма: {}",filmId);
+        log.info("Получен запрос на удаление фильма: {}", filmId);
         filmService.deleteFilm(filmId);
     }
 
     //получение фильма по id
     @GetMapping("/{id}")
     protected Film getFilm(@PathVariable("id") long filmId) {
-        log.info("Получен запрос на чтение фильма с id={}",filmId);
+        log.info("Получен запрос на чтение фильма с id={}", filmId);
         return filmService.getFilm(filmId);
     }
 
@@ -73,4 +72,14 @@ public class FilmController {
         log.info("1.Запрос на получение {} популярных фильмов...", count);
         return filmService.getPopularFilms(count);
     }
+
+    //вернуть общие фильмы для пользователей
+    //GET /films/common?userId={userId}&friendId={friendId}
+    @GetMapping("/common")
+    protected List<Film> getCommonFilms(@RequestParam Optional<String> userId,@RequestParam Optional<String> friendId) {
+        log.info("FilmController: Запрос на получение общих фильмов пользователей с userId={} и friendId={}..."
+                , userId,friendId);
+        return filmService.getCommonFilms(userId,friendId);
+    }
 }
+
