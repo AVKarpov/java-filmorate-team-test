@@ -19,5 +19,7 @@ public interface FilmDao {
 
     Film getFilm(long filmId);
     List<Film> getFilms();
+    List<Film> getFilms(List<Long> filmsId);
     List<Film> getPopularFilms(long maxCount);
+    List<Film> getCommonFilms(long userId,long friendId);
 }

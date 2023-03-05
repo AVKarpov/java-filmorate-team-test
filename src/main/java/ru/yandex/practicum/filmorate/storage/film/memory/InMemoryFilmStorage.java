@@ -141,4 +141,13 @@ public class InMemoryFilmStorage implements FilmDao {
         return ++maxId;
     }
 
+    @Override
+    public List<Film> getFilms(List<Long> filmsId) {
+        return null;
+    }
+
+    @Override
+    public List<Film> getCommonFilms(long userId, long friendId) {
+        return null;
+    }
 }
