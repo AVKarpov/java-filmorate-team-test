@@ -132,29 +132,7 @@ public class FilmService {
         return filmStorage.getPopularFilms(count);
     }
 
-    //вернуть общие фильмы для пользователей
-    public List<Film> getCommonFilms(Optional<String> userId, Optional<String> friendId) {
-        log.info("FilmService: Запрошены общие фильмы пользователей.");
-        long userIdTrue = getDigitOfString(userId);
-        long friendIdTrue = getDigitOfString(friendId);
-        //проверка значений userId и friendId как на значение >0, так и на соответствие Long
-        log.info("FilmService: Запрос на получение общих фильмов пользователей с userId={} и friendId={}..."
-                , userIdTrue, friendIdTrue);
-        isValidUserId(userIdTrue);
-        isValidUserId(friendIdTrue);
-        isNotEqualIdUser(userIdTrue, friendIdTrue);
-        return filmStorage.getCommonFilms(userIdTrue, friendIdTrue);
-    }
 
-    //возвращает из строки числовое значение
-
-    private Long getDigitOfString(Optional<String> str) {
-        return Stream.of(str.get())
-                .limit(1)
-                .map(this::stringParseLong)
-                .findFirst()
-                .get();
-    }
 
     //проверка корректности значений filmId
     private boolean isValidFilmId(long filmId) {
@@ -195,19 +173,4 @@ public class FilmService {
         return true;
     }
 
-    //проверяет не равныли id пользователя и друга
-    public boolean isNotEqualIdUser(long userId, long friendId) {
-        if (userId == friendId) {
-            throw new UserNotFoundException("Пользователь с id=" + userId + " не может добавить сам себя в друзья.");
-        }
-        return true;
-    }
-
-    private Long stringParseLong(String str) {
-        try {
-            return Long.parseLong(str);
-        } catch (RuntimeException e) {
-            throw new ValidationException("Передан некорректный userId.");
-        }
-    }
 }

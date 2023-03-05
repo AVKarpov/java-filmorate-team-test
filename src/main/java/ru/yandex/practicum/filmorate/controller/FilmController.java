@@ -73,13 +73,5 @@ public class FilmController {
         return filmService.getPopularFilms(count);
     }
 
-    //вернуть общие фильмы для пользователей
-    //GET /films/common?userId={userId}&friendId={friendId}
-    @GetMapping("/common")
-    protected List<Film> getCommonFilms(@RequestParam Optional<String> userId,@RequestParam Optional<String> friendId) {
-        log.info("FilmController: Запрос на получение общих фильмов пользователей с userId={} и friendId={}..."
-                , userId,friendId);
-        return filmService.getCommonFilms(userId,friendId);
-    }
 }
 

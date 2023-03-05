@@ -215,19 +215,8 @@ public class FilmDbDao implements FilmDao {
         return getUniqueFilm(popFilms).values().stream().collect(Collectors.toList());
     }
 
-    @Override
-    public List<Film> getCommonFilms(long userId, long friendId) {
-        log.info("FilmDb: Запрос на получение общих фильмов пользователей с userId={} и friendId={}...", userId, friendId);
-        String getSql = "SELECT u.film_id,count(fl.FILM_ID) rating\n" +
-                "FROM (SELECT * FROM FILMS_LIKE fl WHERE USER_ID =?) u\n" +
-                "INNER JOIN \n" +
-                "(SELECT * FROM FILMS_LIKE fl WHERE USER_ID =?) f\n" +
-                "ON u.film_id=f.film_id\n" +
-                "LEFT JOIN FILMS_LIKE fl ON u.film_id=fl.FILM_ID \n" +
-                "GROUP BY fl.FILM_ID";
-        Object[] args = new Object[]{userId, friendId};
-        return getFilmsRatingSort(getSql,args);
-    }
+
+
 
     public List<Film> getFilmsRatingSort(String sql, Object[] args) {
         Map<Long, Integer> filmsId = jdbcTemplate.query(sql, (rs, rowNum) -> filmRatingMapper(rs), args)
@@ -239,6 +228,14 @@ public class FilmDbDao implements FilmDao {
                 .stream()
                 .sorted((f1, f2) -> filmsId.get(f2.getId()) - filmsId.get(f1.getId()))
                 .collect(Collectors.toList());
+    }
+
+    //формирует объект с id фильма и его рейтинга (количество лайков)
+    public FilmRating filmRatingMapper(ResultSet rs) throws SQLException {
+        return FilmRating.builder()
+                .filmId(rs.getLong("film_id"))
+                .rating(rs.getInt("rating"))
+                .build();
     }
 
     private Film filmMapper(ResultSet rs) throws SQLException {
@@ -259,14 +256,6 @@ public class FilmDbDao implements FilmDao {
             genres.add(new Genre(genreId, rs.getString("genre_name")));
         }
         return new Film(id, name, description, releaseDate, duration, rate, mpa, genres);
-    }
-
-    //формирует объект с id фильма и его рейтинга (количество лайков)
-    public FilmRating filmRatingMapper(ResultSet rs) throws SQLException {
-        return FilmRating.builder()
-                .filmId(rs.getLong("film_id"))
-                .rating(rs.getInt("rating"))
-                .build();
     }
 
     //переписать возвращаемое значение на List???
