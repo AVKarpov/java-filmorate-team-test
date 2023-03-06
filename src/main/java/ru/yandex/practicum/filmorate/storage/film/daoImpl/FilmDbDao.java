@@ -7,11 +7,14 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.jdbc.core.PreparedStatementCreator;
 import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.jdbc.support.KeyHolder;
+import org.springframework.jdbc.support.rowset.SqlRowSet;
 import org.springframework.stereotype.Component;
 import ru.yandex.practicum.filmorate.exceptions.film.FilmNotFoundException;
+import ru.yandex.practicum.filmorate.model.Director;
 import ru.yandex.practicum.filmorate.model.Film;
 import ru.yandex.practicum.filmorate.model.Genre;
 import ru.yandex.practicum.filmorate.model.MPA;
+import ru.yandex.practicum.filmorate.storage.film.dao.DirectorDao;
 import ru.yandex.practicum.filmorate.storage.film.dao.FilmDao;
 import ru.yandex.practicum.filmorate.storage.film.dao.GenreDao;
 import ru.yandex.practicum.filmorate.storage.film.dao.MpaDao;
@@ -76,6 +79,10 @@ public class FilmDbDao implements FilmDao {
             }
             log.debug("Жанры для фильма с id={} добавлены.", filmId);
         }
+
+        if (film.getDirectors() != null && !film.getDirectors().isEmpty())
+            addDirectors(film.getDirectors(), film.getId());
+
         return getFilm(film.getId());
     }
 
@@ -113,6 +120,9 @@ public class FilmDbDao implements FilmDao {
             }
             log.debug("Жанры фильма с film_id={} обновлены.", film.getId());
         }
+
+        updateDirectors(film.getDirectors(), film.getId());
+
         return getFilm(film.getId());
     }
 
@@ -136,63 +146,170 @@ public class FilmDbDao implements FilmDao {
     //из таблицы ratings_mpa: mpa.id,mpa.name
     public Film getFilm(long filmId) {
         log.debug("Получен запрос на фильм с id={};", filmId);
-        String getFilmSql = "select f.FILM_ID,f.NAME,f.DESCRIPTION,f.RELEASE_DATE,f.RELEASE_DATE,f.DURATION,f.RATE," +
-                "rm.RATING_ID,rm.RATING_NAME,g.GENRE_ID,g.GENRE_NAME from films f " +
-                "LEFT JOIN RATINGS_MPA rm " +
-                "ON f.RATING_ID =rm.RATING_ID LEFT JOIN FILMS_GENRE fg ON f.FILM_ID =fg.FILM_ID LEFT JOIN GENRE g " +
-                "ON fg.GENRE_ID =g.GENRE_ID WHERE f.film_id=?; ";
+        String getFilmSql = "select f.FILM_ID\n" +
+                "  ,f.NAME\n" +
+                "  ,f.DESCRIPTION \n" +
+                "  ,f.RELEASE_DATE \n" +
+                "  ,f.DURATION \n" +
+                "  ,f.RATE\n" +
+                "  ,rm.RATING_ID\n" +
+                "  ,rm.RATING_NAME\n" +
+                "  ,GROUP_CONCAT(DISTINCT Concat(g.GENRE_ID,'-',g.GENRE_NAME) ORDER BY Concat(g.GENRE_ID,'-',g.GENRE_NAME)) AS GENRE_ID_NAME\n" +
+                "  ,GROUP_CONCAT(DISTINCT Concat(d.DIRECTOR_ID, '-', d.NAME) ORDER BY Concat(d.DIRECTOR_ID, '-', d.NAME)) AS DIRECTOR_ID_NAME\n" +
+                "from FILMS f \n" +
+                "LEFT JOIN RATINGS_MPA rm  ON f.RATING_ID =rm.RATING_ID \n" +
+                "LEFT JOIN FILMS_GENRE fg ON f.FILM_ID =fg.FILM_ID \n" +
+                "LEFT JOIN GENRE g ON fg.GENRE_ID =g.GENRE_ID\n" +
+                "LEFT JOIN FILMS_DIRECTOR fd ON f.FILM_ID = fd.FILM_ID\n" +
+                "LEFT JOIN DIRECTORS d ON fd.DIRECTOR_ID = d.DIRECTOR_ID\n" +
+                "WHERE f.FILM_ID = ? \n" +
+                "GROUP BY f.FILM_ID;";
         List<Film> films = jdbcTemplate.query(getFilmSql, (rs, rowNum) -> filmMapper(rs), filmId);
-        //перебираем films, убираем дубли и группируем жанры
-        Optional<Film> film = getUniqueFilm(films).values().stream().findFirst();
-        if (!film.isPresent()) {
-            log.debug("С id={} фильм не найден.", filmId);
-            throw new FilmNotFoundException("С id=" + filmId + " фильм не найден.");
+
+        if (films == null || films.isEmpty()) {
+            log.debug("Фильм не найден.");
+            throw new FilmNotFoundException("Фильм не найден.");
         }
-        log.debug("С id={} возвращён фильм: {}", filmId, films.stream().findFirst().get().getName());
-        return film.get();
+
+        return films.iterator().next();
     }
 
     @Override
     public List<Film> getFilms() {
         log.debug("Получен запрос на чтение всех фильмов");
-        String getFilmSql = "select f.FILM_ID ,f.NAME ,f.DESCRIPTION ,f.RELEASE_DATE ,f.RELEASE_DATE ,f.DURATION ,f.RATE ," +
-                "rm.RATING_ID ,rm.RATING_NAME ,g.GENRE_ID ,g.GENRE_NAME from films f LEFT JOIN RATINGS_MPA rm " +
-                "ON f.RATING_ID =rm.RATING_ID LEFT JOIN FILMS_GENRE fg ON f.FILM_ID =fg.FILM_ID LEFT JOIN GENRE g " +
-                "ON fg.GENRE_ID =g.GENRE_ID ORDER BY f.FILM_ID;";
+        String getFilmSql = "select f.FILM_ID\n" +
+                "  ,f.NAME\n" +
+                "  ,f.DESCRIPTION \n" +
+                "  ,f.RELEASE_DATE \n" +
+                "  ,f.DURATION \n" +
+                "  ,f.RATE\n" +
+                "  ,rm.RATING_ID\n" +
+                "  ,rm.RATING_NAME\n" +
+                "  ,GROUP_CONCAT(DISTINCT Concat(g.GENRE_ID,'-',g.GENRE_NAME) ORDER BY Concat(g.GENRE_ID,'-',g.GENRE_NAME)) AS GENRE_ID_NAME\n" +
+                "  ,GROUP_CONCAT(DISTINCT Concat(d.DIRECTOR_ID, '-', d.NAME) ORDER BY Concat(d.DIRECTOR_ID, '-', d.NAME)) AS DIRECTOR_ID_NAME\n" +
+                "from films f LEFT JOIN RATINGS_MPA rm  ON f.RATING_ID =rm.RATING_ID \n" +
+                "LEFT JOIN FILMS_GENRE fg ON f.FILM_ID =fg.FILM_ID \n" +
+                "LEFT JOIN GENRE g ON fg.GENRE_ID =g.GENRE_ID\n" +
+                "LEFT JOIN FILMS_DIRECTOR fd ON f.FILM_ID = fd.FILM_ID\n" +
+                "LEFT JOIN DIRECTORS d ON fd.DIRECTOR_ID = d.DIRECTOR_ID\n" +
+                "GROUP BY f.FILM_ID;";
         //запрашиваем все фильмы с жанрами и рейтингом MPA
         List<Film> films = jdbcTemplate.query(getFilmSql, (rs, rowNum) -> filmMapper(rs));
         if (films == null) {
             log.debug("Фильмы не найдены.");
             throw new FilmNotFoundException("Фильмы не найдены.");
         }
-        log.debug("Получен списко из {} фильмов.", films.size());
-        //если у фильма несколько жанров, то будут дубли
-        //перебираем получившийся набор, если дубль, то добавляем в Set<Genre> ещё один жанр
-        //long - film_id
-        //Film - информация о фильме
-        //перебираем films, убираем дубли и группируем жанры
-        LinkedHashMap<Long, Film> filmsMap = getUniqueFilm(films);
-        log.debug("После удаления дублей осталось {} фильмов.", filmsMap.size());
-        return filmsMap.values().stream().collect(Collectors.toList());
+        log.debug("Получен список из {} фильмов.", films.size());
+        return films;
     }
 
     @Override
     public List<Film> getPopularFilms(long maxCount) {
-        String popFilmSql = "SELECT f2.FILM_ID ,f2.NAME ,f2.DESCRIPTION ,f2.RELEASE_DATE ,f2.RELEASE_DATE ,f2.DURATION ,f2.RATE," +
-                "rm.RATING_ID ,rm.RATING_NAME ,g.GENRE_ID ,g.GENRE_NAME FROM (SELECT f.* FROM FILMS f LEFT JOIN " +
-                "(SELECT FILM_ID,COUNT(*) cLike FROM FILMS_LIKE GROUP BY FILM_ID ) fl ON fl.FILM_ID=f.FILM_ID " +
-                "ORDER BY clike DESC limit(?)) f2 " +
-                "LEFT JOIN RATINGS_MPA rm ON f2.RATING_ID =rm.RATING_ID " +
-                "LEFT JOIN FILMS_GENRE fg ON f2.FILM_ID =fg.FILM_ID " +
-                "LEFT JOIN GENRE g ON fg.GENRE_ID =g.GENRE_ID;";
+        String popFilmSql = "select f.FILM_ID\n" +
+                "  ,f.NAME\n" +
+                "  ,f.DESCRIPTION \n" +
+                "  ,f.RELEASE_DATE \n" +
+                "  ,f.DURATION \n" +
+                "  ,f.RATE\n" +
+                "  ,rm.RATING_ID\n" +
+                "  ,rm.RATING_NAME\n" +
+                "  ,GROUP_CONCAT(DISTINCT Concat(g.GENRE_ID,'-',g.GENRE_NAME) ORDER BY Concat(g.GENRE_ID,'-',g.GENRE_NAME)) AS GENRE_ID_NAME\n" +
+                "  ,GROUP_CONCAT(DISTINCT Concat(d.DIRECTOR_ID, '-', d.NAME) ORDER BY Concat(d.DIRECTOR_ID, '-', d.NAME)) AS DIRECTOR_ID_NAME\n" +
+                "from (\n" +
+                "  SELECT fi.* \n" +
+                "        FROM FILMS fi \n" +
+                "        LEFT JOIN \n" +
+                "        (SELECT FILM_ID,COUNT(*) cLike \n" +
+                "            FROM FILMS_LIKE \n" +
+                "            GROUP BY FILM_ID\n" +
+                "        ) fil \n" +
+                "        ON fil.FILM_ID = fi.FILM_ID \n" +
+                "        ORDER BY clike DESC limit(?)\n" +
+                ") f\n" +
+                "LEFT JOIN RATINGS_MPA rm  ON f.RATING_ID =rm.RATING_ID \n" +
+                "LEFT JOIN FILMS_GENRE fg ON f.FILM_ID =fg.FILM_ID \n" +
+                "LEFT JOIN GENRE g ON fg.GENRE_ID =g.GENRE_ID\n" +
+                "LEFT JOIN FILMS_DIRECTOR fd ON f.FILM_ID = fd.FILM_ID\n" +
+                "LEFT JOIN DIRECTORS d ON fd.DIRECTOR_ID = d.DIRECTOR_ID\n" +
+                "GROUP BY f.FILM_ID;";
         List<Film> popFilms = jdbcTemplate.query(popFilmSql, (rs, rowNum) -> filmMapper(rs), maxCount);
+
         log.debug("Популярные фильмы:");
         for (Film film : popFilms) {
             log.debug("Фильм с film_id={}: {}", film.getId(), film);
         }
-        //перебираем films, убираем дубли и группируем жанры
-        LinkedHashMap<Long, Film> filmsMap = getUniqueFilm(popFilms);
-        return filmsMap.values().stream().collect(Collectors.toList());
+
+        return popFilms;
+    }
+
+    @Override
+    public List<Film> getDirectorsFilms(int directorId, String sortBy) {
+        log.debug("Request to get directors films from DB.");
+
+        String sql = "";
+
+        if (sortBy.equals("likes"))
+            sql = "select f.FILM_ID\n" +
+                    "  ,f.NAME\n" +
+                    "  ,f.DESCRIPTION \n" +
+                    "  ,f.RELEASE_DATE \n" +
+                    "  ,f.DURATION \n" +
+                    "  ,f.RATE\n" +
+                    "  ,rm.RATING_ID\n" +
+                    "  ,rm.RATING_NAME\n" +
+                    "  ,GROUP_CONCAT(DISTINCT Concat(g.GENRE_ID,'-',g.GENRE_NAME) ORDER BY Concat(g.GENRE_ID,'-',g.GENRE_NAME)) AS GENRE_ID_NAME\n" +
+                    "  ,GROUP_CONCAT(DISTINCT Concat(d.DIRECTOR_ID, '-', d.NAME) ORDER BY Concat(d.DIRECTOR_ID, '-', d.NAME)) AS DIRECTOR_ID_NAME\n" +
+                    "from (\n" +
+                    "  SELECT fi.* \n" +
+                    "        FROM FILMS fi \n" +
+                    "        LEFT JOIN \n" +
+                    "        (SELECT FILM_ID,COUNT(*) cLike \n" +
+                    "            FROM FILMS_LIKE \n" +
+                    "            GROUP BY FILM_ID\n" +
+                    "        ) fil \n" +
+                    "        ON fil.FILM_ID = fi.FILM_ID \n" +
+                    "        ORDER BY clike  \n" +
+                    ") f\n" +
+                    "LEFT JOIN RATINGS_MPA rm  ON f.RATING_ID =rm.RATING_ID \n" +
+                    "LEFT JOIN FILMS_GENRE fg ON f.FILM_ID =fg.FILM_ID \n" +
+                    "LEFT JOIN GENRE g ON fg.GENRE_ID =g.GENRE_ID\n" +
+                    "LEFT JOIN FILMS_DIRECTOR fd ON f.FILM_ID = fd.FILM_ID\n" +
+                    "LEFT JOIN DIRECTORS d ON fd.DIRECTOR_ID = d.DIRECTOR_ID\n" +
+                    "WHERE f.FILM_ID IN ( " +
+                    "SELECT f2.film_id " +
+                    "FROM films_director f2 " +
+                    "WHERE f2.director_id = ?)\n" +
+                    "GROUP BY f.FILM_ID;";
+        else
+            sql = "select f.FILM_ID\n" +
+                    "  ,f.NAME\n" +
+                    "  ,f.DESCRIPTION \n" +
+                    "  ,f.RELEASE_DATE \n" +
+                    "  ,f.DURATION \n" +
+                    "  ,f.RATE\n" +
+                    "  ,rm.RATING_ID\n" +
+                    "  ,rm.RATING_NAME\n" +
+                    "  ,GROUP_CONCAT(DISTINCT Concat(g.GENRE_ID,'-',g.GENRE_NAME) ORDER BY Concat(g.GENRE_ID,'-',g.GENRE_NAME)) AS GENRE_ID_NAME\n" +
+                    "  ,GROUP_CONCAT(DISTINCT Concat(d.DIRECTOR_ID, '-', d.NAME) ORDER BY Concat(d.DIRECTOR_ID, '-', d.NAME)) AS DIRECTOR_ID_NAME\n" +
+                    "from films f LEFT JOIN RATINGS_MPA rm  ON f.RATING_ID =rm.RATING_ID \n" +
+                    "LEFT JOIN FILMS_GENRE fg ON f.FILM_ID =fg.FILM_ID \n" +
+                    "LEFT JOIN GENRE g ON fg.GENRE_ID =g.GENRE_ID\n" +
+                    "LEFT JOIN FILMS_DIRECTOR fd ON f.FILM_ID = fd.FILM_ID\n" +
+                    "LEFT JOIN DIRECTORS d ON fd.DIRECTOR_ID = d.DIRECTOR_ID\n" +
+                    "WHERE f.FILM_ID IN ( " +
+                    "SELECT f2.film_id " +
+                    "FROM films_director f2 " +
+                    "WHERE f2.director_id = ? )\n" +
+                    "GROUP BY f.FILM_ID\n" +
+                    "ORDER BY f.RELEASE_DATE;";
+
+        List<Film> films = jdbcTemplate.query(sql, (rs, rowNum) -> filmMapper(rs), directorId);
+        if (films == null) {
+            log.debug("Фильмы не найдены.");
+            throw new FilmNotFoundException("Фильмы не найдены.");
+        }
+        log.debug("Получен список из {} фильмов.", films.size());
+        return films;
     }
 
     private Film filmMapper(ResultSet rs) throws SQLException {
@@ -206,13 +323,64 @@ public class FilmDbDao implements FilmDao {
         MPA mpa = new MPA();
         mpa.setId(rs.getInt("rating_id"));
         mpa.setName(rs.getString("rating_name"));
-        int genreId = rs.getInt("genre_id");
-        log.debug("Получен жанр фильма с film_id={} - genre_id={}", id, genreId);
-        Set<Genre> genres = new HashSet<>();
-        if (genreId > 0) {
-            genres.add(new Genre(genreId, rs.getString("genre_name")));
+
+        Set<Genre> genres = getGenresFromResultSet(rs);
+
+        Set<Director> directors = getDirectorsFromResultSet(rs);
+
+        return Film.builder()
+                .id(id)
+                .name(name)
+                .description(description)
+                .releaseDate(releaseDate)
+                .duration(duration)
+                .rate(rate)
+                .mpa(mpa)
+                .genres(genres)
+                .directors(directors)
+                .build();
+    }
+
+    private Set<Director> getDirectorsFromResultSet(ResultSet rs) throws SQLException {
+        Set<Director> directors = new HashSet<>();
+
+        String allFilmDirectors = rs.getString("DIRECTOR_ID_NAME");
+
+        if(allFilmDirectors == null || allFilmDirectors.isEmpty() || allFilmDirectors.isBlank() || allFilmDirectors.equals("-"))
+            return directors;
+
+        for (String filmDirector : allFilmDirectors.split(",")) {
+            String[] strings = filmDirector.split("-");
+            directors.add(
+                    Director.builder()
+                            .id(Integer.parseInt(strings[0]))
+                            .name(strings[1])
+                            .build()
+            );
         }
-        return new Film(id, name, description, releaseDate, duration, rate, mpa, genres);
+
+        return directors;
+    }
+
+    private Set<Genre> getGenresFromResultSet(ResultSet rs) throws SQLException {
+        Set<Genre> genres = new HashSet<>();
+
+        String allFilmGenres = rs.getString("GENRE_ID_NAME");
+
+        if (allFilmGenres == null || allFilmGenres.isEmpty() || allFilmGenres.isBlank() || allFilmGenres.equals("-"))
+            return genres;
+
+        for (String filmGenre : allFilmGenres.split(",")) {
+            String[] strings = filmGenre.split("-");
+            genres.add(
+                    Genre.builder()
+                    .id(Integer.parseInt(strings[0]))
+                    .name(strings[1])
+                    .build()
+            );
+        }
+
+        return genres;
     }
 
     private LinkedHashMap<Long, Film> getUniqueFilm(List<Film> films) {
@@ -225,5 +393,27 @@ public class FilmDbDao implements FilmDao {
             }
         }
         return filmsMap;
+    }
+
+    private void addDirectors(Set<Director> directors, long filmId) {
+        log.debug("Request to add directors to DB.");
+
+        String sql = "INSERT INTO films_director (film_id, director_id) " +
+                "VALUES (?, ?);";
+
+        for (Director director : directors) {
+            jdbcTemplate.update(sql, filmId, director.getId());
+        }
+    }
+
+    private void updateDirectors(Set<Director> directors, long filmId) {
+        log.debug("Request to update directors to film with id = {}", filmId);
+
+        String sql = "DELETE FROM films_director " +
+                "WHERE film_id = ?;";
+        jdbcTemplate.update(sql, filmId);
+
+        if(directors != null)
+            addDirectors(directors, filmId);
     }
 }
