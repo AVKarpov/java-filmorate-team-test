@@ -30,7 +30,7 @@ public class FilmLikeDbDao implements FilmLikeDao {
     @Override
     public void addLike(long filmId, long userId) {
         try{
-            String addSql="insert into  FILMS_LIKE (film_id, user_id) select ?, ? from dual where not exists "+
+            String addSql= "insert into FILMS_LIKE (film_id, user_id) select ?, ? from dual where not exists "+
                     "(select 1 from FILMS_LIKE where film_id=? AND user_id=?);";
             Object[] args = new Object[] {filmId,userId,filmId,userId};
             int addRow=jdbcTemplate.update(addSql, args);

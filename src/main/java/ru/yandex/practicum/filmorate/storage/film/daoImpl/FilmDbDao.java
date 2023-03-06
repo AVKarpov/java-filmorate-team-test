@@ -449,7 +449,8 @@ public class FilmDbDao implements FilmDao {
                 "LEFT JOIN FILMS_DIRECTOR fd ON f.FILM_ID = fd.FILM_ID\n" +
                 "LEFT JOIN DIRECTORS d ON fd.DIRECTOR_ID = d.DIRECTOR_ID\n" +
                 "WHERE LOWER(f.NAME) LIKE '%" + stringInSql + "%'\n" +
-                "GROUP BY f.FILM_ID;";
+                "GROUP BY f.FILM_ID\n" +
+                "ORDER BY f.FILM_ID DESC;";
         String searchFilmsSqlByDirector = "select f.FILM_ID\n" +
                 "  ,f.NAME\n" +
                 "  ,f.DESCRIPTION \n" +
@@ -477,7 +478,8 @@ public class FilmDbDao implements FilmDao {
                 "LEFT JOIN FILMS_DIRECTOR fd ON f.FILM_ID = fd.FILM_ID\n" +
                 "LEFT JOIN DIRECTORS d ON fd.DIRECTOR_ID = d.DIRECTOR_ID\n" +
                 "WHERE LOWER(d.NAME) LIKE '%" + stringInSql + "%'\n" +
-                "GROUP BY f.FILM_ID;";
+                "GROUP BY f.FILM_ID\n" +
+                "ORDER BY f.FILM_ID DESC;";
         String searchFilmsSqlByAll = "select f.FILM_ID\n" +
                 "  ,f.NAME\n" +
                 "  ,f.DESCRIPTION \n" +
@@ -504,9 +506,10 @@ public class FilmDbDao implements FilmDao {
                 "LEFT JOIN GENRE g ON fg.GENRE_ID =g.GENRE_ID\n" +
                 "LEFT JOIN FILMS_DIRECTOR fd ON f.FILM_ID = fd.FILM_ID\n" +
                 "LEFT JOIN DIRECTORS d ON fd.DIRECTOR_ID = d.DIRECTOR_ID\n" +
-                "WHERE LOWER(f.NAME) LIKE '%" + stringInSql + "%'\n" +
-                "OR LOWER(d.NAME) LIKE '%" + stringInSql + "%'\n" +
-                "GROUP BY f.FILM_ID;";
+                "WHERE LOWER(d.NAME) LIKE '%" + stringInSql + "%'\n" +
+                "OR LOWER(f.NAME) LIKE '%" + stringInSql + "%'\n" +
+                "GROUP BY f.FILM_ID\n" +
+                "ORDER BY f.FILM_ID DESC;";
 
         if (by != null) {
             log.debug("Получен запрос с параметром by");
