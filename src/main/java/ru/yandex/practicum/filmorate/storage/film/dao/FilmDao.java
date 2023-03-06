@@ -20,4 +20,6 @@ public interface FilmDao {
     Film getFilm(long filmId);
     List<Film> getFilms();
     List<Film> getPopularFilms(long maxCount);
+
+    Object getPopularFilmGenreIdYear(long year, long genreId, long count);
 }

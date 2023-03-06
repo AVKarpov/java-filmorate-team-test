@@ -15,6 +15,8 @@ import ru.yandex.practicum.filmorate.storage.film.dao.GenreDao;
 import ru.yandex.practicum.filmorate.storage.film.dao.MpaDao;
 import ru.yandex.practicum.filmorate.storage.user.dao.UserDao;
 
+import java.util.ArrayList;
+import java.util.Collection;
 import java.util.List;
 import java.util.Set;
 import java.util.stream.Collectors;
@@ -167,5 +169,15 @@ public class FilmService {
         }
         log.debug("Для фильма не найден все добавляемые (обновляемые) жанры.");
         return true;
+    }
+
+    public List<Film> getPopularFilmGenreIdYear(long count, long genreId, long year){
+        List<Long> filmIdSorted = new ArrayList<>((Collection) filmStorage.getPopularFilmGenreIdYear(year, genreId, count));
+        List<Film> mutualFilmList = new ArrayList<>();
+        for(long t: filmIdSorted){
+            mutualFilmList.add(filmStorage.getFilm(t));
+        }
+
+        return mutualFilmList;
     }
 }

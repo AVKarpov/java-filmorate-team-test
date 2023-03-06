@@ -21,7 +21,7 @@ public class FilmController {
 
     //добавление фильма
     @PostMapping
-    protected Film addFilm(@Valid @RequestBody Film film) {
+    protected  Film addFilm(@Valid @RequestBody Film film) {
         log.info("Получен запрос на добавление фильма: {}",film.getName());
         return filmService.addFilm(film);
     }
@@ -40,7 +40,13 @@ public class FilmController {
         filmService.deleteFilm(filmId);
     }
 
+    @GetMapping( "/popular") //films/popular?count={limit}&genreId={genreId}&year={year}
 
+    public List<Film> getPopularFilmGenreIdYear(@RequestParam (defaultValue = "10") Integer count,
+                                                @RequestParam (defaultValue = "0") Integer genreId,
+                                                @RequestParam (defaultValue = "0") Integer year){
+        return filmService.getPopularFilmGenreIdYear(count, genreId, year);
+    }
     //получение фильма по id
     @GetMapping("/{id}")
     protected Film getFilm(@PathVariable("id") long filmId) {
