@@ -14,6 +14,7 @@ import ru.yandex.practicum.filmorate.storage.user.dao.UserDao;
 
 import java.util.List;
 import java.util.Objects;
+import java.util.Optional;
 import java.util.Set;
 import java.util.stream.Collectors;
 
@@ -207,5 +208,9 @@ public class FilmService {
             }
         }
         return true;
+    }
+
+    public List<Film> searchFilms(Optional<String> query, List<String> by) {
+        return filmStorage.searchFilms(query,by);
     }
 }

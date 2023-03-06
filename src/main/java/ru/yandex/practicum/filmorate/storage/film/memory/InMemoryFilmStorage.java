@@ -147,4 +147,9 @@ public class InMemoryFilmStorage implements FilmDao {
         return ++maxId;
     }
 
+    @Override
+    public List<Film> searchFilms(Optional<String> query, List<String> by){
+        return null;
+    }
+
 }

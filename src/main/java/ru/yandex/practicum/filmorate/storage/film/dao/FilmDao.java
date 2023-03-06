@@ -3,6 +3,7 @@ package ru.yandex.practicum.filmorate.storage.film.dao;
 import ru.yandex.practicum.filmorate.model.Film;
 
 import java.util.List;
+import java.util.Optional;
 
 //методы добавления, удаления и модификации объектов.
 
@@ -22,4 +23,5 @@ public interface FilmDao {
     List<Film> getPopularFilms(long maxCount);
 
     List<Film> getDirectorsFilms(int directorId, String sortBy);
+    List<Film> searchFilms(Optional<String> query, List<String> by);
 }
