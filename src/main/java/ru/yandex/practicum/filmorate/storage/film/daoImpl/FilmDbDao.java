@@ -381,18 +381,6 @@ public class FilmDbDao implements FilmDao {
         return genres;
     }
 
-    private LinkedHashMap<Long, Film> getUniqueFilm(List<Film> films) {
-        LinkedHashMap<Long, Film> filmsMap = new LinkedHashMap<>();
-        for (Film film : films) {
-            if (filmsMap.containsKey(film.getId())) {
-                filmsMap.get(film.getId()).addGenres(film.getGenres().stream().findFirst().get());
-            } else {
-                filmsMap.put(film.getId(), film);
-            }
-        }
-        return filmsMap;
-    }
-
     private void addDirectors(Set<Director> directors, long filmId) {
         log.debug("Request to add directors to DB.");
 
@@ -418,7 +406,7 @@ public class FilmDbDao implements FilmDao {
     @Override
     public List<Film> searchFilms(Optional<String> query, List<String> by) {
         List<Film> searchedFilms = new ArrayList<>();
-        if (query.get().isEmpty() || query.isEmpty() || query.get().equals(" ")) {
+        if (query.get().isEmpty() || query.get().equals(" ")) {
             return searchedFilms;
         }
         String stringInSql = query.get().toLowerCase();
@@ -510,31 +498,29 @@ public class FilmDbDao implements FilmDao {
                 "OR LOWER(f.NAME) LIKE '%" + stringInSql + "%'\n" +
                 "GROUP BY f.FILM_ID\n" +
                 "ORDER BY f.FILM_ID DESC;";
-
         if (by != null) {
             log.debug("Получен запрос с параметром by");
             if (by.size() == 1 & by.contains("title")) {
                 log.debug("Получен запрос на поиск фильма по названию");
-                return getSearchedFilms(searchedFilms, searchFilmsSqlByName);
+                return getSearchedFilms(searchFilmsSqlByName);
             }
             if (by.size() == 1 & by.contains("director")) {
                 log.debug("Получен запрос на поиск фильма по имени режиссера");
-                return getSearchedFilms(searchedFilms, searchFilmsSqlByDirector);
+                return getSearchedFilms(searchFilmsSqlByDirector);
             }
             if (by.size() == 2 & by.contains("title") & by.contains("director")) {
                 log.debug("Получен запрос на поиск фильма по имени режиссера и по названию фильма");
-                return getSearchedFilms(searchedFilms, searchFilmsSqlByAll);
-            }
-            if (by.size() >= 2 & (!by.contains("title") || !by.contains("directors"))) {
+                return getSearchedFilms(searchFilmsSqlByAll);
+            } else {
                 throw new IllegalArgumentException("Передан некорректный параметр by!");
             }
         }
         log.debug("Получен запрос без параметра by, выполнен поиск по умолчанию");
-        return getSearchedFilms(searchedFilms, searchFilmsSqlByName);
+        return getSearchedFilms(searchFilmsSqlByName);
     }
 
-    private List<Film> getSearchedFilms(List<Film> searchedFilms, String sql) {
-        searchedFilms = jdbcTemplate.query(sql, (rs, rowNum) -> filmMapper(rs));
+    private List<Film> getSearchedFilms(String sql) {
+        List<Film> searchedFilms = jdbcTemplate.query(sql, (rs, rowNum) -> filmMapper(rs));
         log.debug("Результаты поиска:");
         for (Film film : searchedFilms) {
             log.debug("Фильм с film_id={}: {}", film.getId(), film);

@@ -41,20 +41,20 @@ public class ErrorHandler {
     public ErrorResponse handleGenreNotFoundException(final GenreNotFoundException e) {
         return new ErrorResponse("id жанра фильма", e.getMessage());
     }
+
     @ExceptionHandler
     @ResponseStatus(HttpStatus.BAD_REQUEST)
     public ErrorResponse handleIncorrectParameterException(final ValidationException e) {
         return new ErrorResponse("некорректный параметр", e.getMessage());
     }
 
-    /*
+
     @ExceptionHandler
     @ResponseStatus(HttpStatus.INTERNAL_SERVER_ERROR)
     public ErrorResponse handleOtherThrows(final Throwable e) {
         return new ErrorResponse("иные ошибки", e.getMessage());
     }
 
-     */
 
     @ExceptionHandler
     @ResponseStatus(HttpStatus.NOT_FOUND)
