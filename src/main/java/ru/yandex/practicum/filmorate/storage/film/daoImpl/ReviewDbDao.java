@@ -60,10 +60,8 @@ public class ReviewDbDao implements ReviewDao {
         log.info("Запрос на обновление отзыва: {} получен хранилищем ДБ", review);
 
         log.debug("Формируем sql запрос...");
-        String updateSql = "UPDATE films_review SET content=?,is_positive=? WHERE review_id=?;";
-        Object[] args = new Object[]{review.getContent(), review.getIsPositive(), review.getReviewId()};
-
-        int updateRow = jdbcTemplate.update(updateSql, args);
+        String updateSql = "UPDATE films_review SET content = ?, is_positive = ? WHERE review_id = ?";
+        int updateRow = jdbcTemplate.update(updateSql, review.getContent(), review.getIsPositive(), review.getReviewId());
         if (updateRow <= 0) {
             log.debug("Отзыв с id={} для обновления не найден.", review.getReviewId());
             throw new ReviewNotFoundException("Отзыв с id=" + review.getReviewId() + " для обновления не найден.");
@@ -77,9 +75,8 @@ public class ReviewDbDao implements ReviewDao {
         log.info("Запрос на удаление отзыва c id={} получен хранилищем ДБ", id);
 
         log.debug("Формируем sql запрос...");
-        String deleteReviewSql = "delete from films_review where review_id= ?";
-        Object[] args = new Object[]{id};
-        int delRow = jdbcTemplate.update(deleteReviewSql, args);
+        String deleteReviewSql = "DELETE FROM films_review WHERE review_id = ?";
+        int delRow = jdbcTemplate.update(deleteReviewSql, id);
         if (delRow <= 0) {
             log.debug("Отзыв с id={} для удаления не найден.", id);
             throw new ReviewNotFoundException("Отзыв с id=" + id + " для удаления не найден.");
@@ -92,15 +89,14 @@ public class ReviewDbDao implements ReviewDao {
         log.debug("Получен запрос на отзыв с id={};", id);
 
         log.debug("Формируем sql запрос...");
-        String getReviewSql = "select r.REVIEW_ID,r.FILM_ID,r.USER_ID,r.CONTENT,r.IS_POSITIVE from films_review r " +
-                " WHERE r.review_id = ?";
-        List<Review> reviews = jdbcTemplate.query(getReviewSql, (rs, rowNum) -> reviewMapper(rs), id);
-        Optional<Review> review = reviews.stream().findFirst();
-        if (!review.isPresent()) {
+        String getReviewSql = "SELECT review_id, film_id, user_id, content, is_positive FROM films_review " +
+                "WHERE review_id = ?";
+        Optional<Review> review = jdbcTemplate.query(getReviewSql, (rs, rowNum) -> reviewMapper(rs), id).stream().findFirst();
+        if (review.isEmpty()) {
             log.debug("Отзыв с id={} не найден.", id);
             throw new ReviewNotFoundException("Отзыв с id=" + id + " не найден.");
         }
-        log.debug("Отзыв с id={} возвращён: {}", id, reviews.stream().findFirst().get());
+        log.debug("Отзыв с id={} возвращён: {}", id, review.get());
         Review resultReview = review.get();
         resultReview.setUseful(reviewLikeDao.getUsefulByReviewId(id));
         return resultReview;
@@ -111,8 +107,8 @@ public class ReviewDbDao implements ReviewDao {
         log.debug("Получен запрос на все отзывы для фильма с id={};", id);
 
         log.debug("Формируем sql запрос...");
-        String getReviewSql = "select r.REVIEW_ID,r.FILM_ID,r.USER_ID,r.CONTENT,r.IS_POSITIVE from films_review r " +
-                " WHERE r.film_id = ?";
+        String getReviewSql = "SELECT review_id, film_id, user_id, content, is_positive FROM films_review " +
+                "WHERE film_id = ?";
         List<Review> reviews = jdbcTemplate.query(getReviewSql, (rs, rowNum) -> reviewMapper(rs), id);
         reviews.forEach(r -> r.setUseful(reviewLikeDao.getUsefulByReviewId(r.getReviewId())));
         return reviews.stream().sorted(Comparator.comparing(Review::getUseful).reversed()).limit(count).collect(Collectors.toList());
@@ -123,7 +119,7 @@ public class ReviewDbDao implements ReviewDao {
         log.debug("Получен запрос на топ 10 отзывов");
 
         log.debug("Формируем sql запрос...");
-        String getReviewSql = "select r.REVIEW_ID,r.FILM_ID,r.USER_ID,r.CONTENT,r.IS_POSITIVE from films_review r;";
+        String getReviewSql = "SELECT review_id, film_id, user_id, content, is_positive FROM films_review";
         List<Review> reviews = jdbcTemplate.query(getReviewSql, (rs, rowNum) -> reviewMapper(rs));
         reviews.forEach(r -> r.setUseful(reviewLikeDao.getUsefulByReviewId(r.getReviewId())));
         return reviews
@@ -134,11 +130,11 @@ public class ReviewDbDao implements ReviewDao {
     }
 
     private Review reviewMapper(ResultSet rs) throws SQLException {
-        long id = rs.getLong("review_id");
-        int filmId = rs.getInt("film_id");
-        int userId = rs.getInt("user_id");
-        String content = rs.getString("content");
-        boolean isPositive = rs.getBoolean("is_positive");
-        return new Review(id, filmId, userId, content, 0, isPositive);
+        return new Review(rs.getLong("review_id"),
+                rs.getInt("film_id"),
+                rs.getInt("user_id"),
+                rs.getString("content"),
+                0,
+                rs.getBoolean("is_positive"));
     }
 }

@@ -7,8 +7,6 @@ import lombok.Setter;
 
 @Data
 @AllArgsConstructor
-@Getter
-@Setter
 public class ReviewLike {
     private Integer reviewId;
     private Integer userId;

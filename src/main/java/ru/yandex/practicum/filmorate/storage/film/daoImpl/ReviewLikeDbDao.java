@@ -20,41 +20,33 @@ public class ReviewLikeDbDao implements ReviewLikeDao {
 
     @Override
     public void addLike(int userId, int reviewId) {
-        String sql = "insert into useful_review (review_id, user_id, is_like) values (?, ?, ?)";
-        jdbcTemplate.update(sql, reviewId, userId, true);
+        String sql = "INSERT INTO useful_review (review_id, user_id, is_like) VALUES (?, ?, TRUE)";
+        jdbcTemplate.update(sql, reviewId, userId);
     }
 
     @Override
     public void addDislike(int userId, int reviewId) {
-        String sql = "insert into useful_review (review_id, user_id, is_like) values (?, ?, ?)";
-        jdbcTemplate.update(sql, reviewId, userId, false);
+        String sql = "INSERT INTO useful_review (review_id, user_id, is_like) VALUES (?, ?, FALSE)";
+        jdbcTemplate.update(sql, reviewId, userId);
     }
 
     @Override
     public void deleteLike(int userId, int reviewId) {
-        String sql = "delete from useful_review where user_id = ? and review_id = ? and is_like = ?";
-        jdbcTemplate.update(sql, reviewId, userId, true);
+        String sql = "DELETE FROM useful_review WHERE user_id = ? AND review_id = ? AND is_like = TRUE";
+        jdbcTemplate.update(sql, reviewId, userId);
     }
 
     @Override
     public void deleteDislike(int userId, int reviewId) {
-        String sql = "delete from useful_review where user_id = ? and review_id = ? and is_like = ?";
-        jdbcTemplate.update(sql, reviewId, userId, false);
+        String sql = "DELETE FROM useful_review WHERE user_id = ? AND review_id = ? AND is_like = FALSE";
+        jdbcTemplate.update(sql, reviewId, userId);
     }
 
     @Override
     public int getUsefulByReviewId(long id) {
-        String sql = "select (count(case is_like when true then 1 end) - " +
-                "count(case is_like when false then 1 end)) as useful from useful_review where review_id = ?;";
-        return jdbcTemplate.query(sql, (rs, rowNum) -> usefulMapper(rs), id).stream().findFirst().orElse(0);
-    }
-
-
-    private int usefulMapper(ResultSet resultSet) {
-        try {
-            return resultSet.getInt("useful");
-        } catch (SQLException e) {
-            return 0;
-        }
+        String sql = "SELECT (COUNT(CASE is_like WHEN TRUE THEN 1 END) - " +
+                "COUNT(CASE is_like WHEN FALSE THEN 1 END)) AS useful FROM useful_review WHERE review_id = ?";
+        return jdbcTemplate.query(sql, (rs, rowNum) -> rs.getInt("useful"), id)
+                .stream().findFirst().orElse(0);
     }
 }
